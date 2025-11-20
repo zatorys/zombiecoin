@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<title>ZombieChain — Public Demo (Optimized)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{
+  --bg:#050505;--card:#0f0f0f;--line:#202020;
+  --green:#39ff9b;--glow:#39ff9b;--muted:#9bbf9b;--txt:#eaffea;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:radial-gradient(circle at top left,#0c0c0c 0%,#000 80%);
+  color:var(--txt);font-family:'Orbitron',sans-serif;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;
+  padding:20px;
+}
+header{text-align:left;margin:18px 0 8px}
+h1{margin:0 0 4px;font-size:28px;color:var(--green);text-shadow:0 0 10px var(--glow),0 0 20px var(--glow)}
+.muted{color:var(--muted);font-size:14px}
+.card{
+  background:rgba(15,15,15,.9);border:1px solid #1a3d29;box-shadow:0 0 10px rgba(57,255,155,.15);
+  padding:18px;border-radius:14px;margin:14px 0;transition:.3s
+}
+.card:hover{border-color:var(--green);box-shadow:0 0 20px rgba(57,255,155,.3)}
+/* New coin visual feedback */
+.card.newCoin{animation:fadeIn 0.9s ease-out,glowNew 2.5s ease-out}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes glowNew{0%{box-shadow:0 0 18px rgba(57,255,155,.65)}100%{box-shadow:0 0 0 rgba(0,0,0,0)}}
+
+input,textarea,button{background:#111;color:var(--txt);border:1px solid #2a2a2a;border-radius:8px;padding:10px;font-family:'Orbitron',sans-serif}
+button{background:linear-gradient(90deg,var(--green),#99ffc8);color:#000;border:none;cursor:pointer;font-size:16px;transition:.2s}
+button:hover{transform:translateY(-1px) scale(1.03);box-shadow:0 0 15px rgba(57,255,155,.45)}
+button.ghost{background:#151515;color:#bbb;border:1px solid #2a2a2a}
+textarea{width:100%;resize:none}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1 1 320px}
+img.logo{width:60px;height:60px;border-radius:10px;margin-top:6px;object-fit:cover;border:1px solid #1e1e1e}
+.chartBox{height:200px;width:100%;margin-top:8px;position:relative}
+.commentBox{margin-top:10px;padding-top:8px;border-top:1px solid #222}
+.comment{background:#0d0d0d;border:1px solid #222;padding:6px;margin-top:6px;border-radius:6px;font-size:14px}
+.comment .user{color:#22e38b;font-weight:bold}
+.comment .time{color:#888;font-size:11px}
+.scrollX{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:640px}
+th,td{border-bottom:1px solid #1c1c1c;padding:8px;text-align:left;white-space:nowrap}
+th{color:#c7ffde}
+.pager{display:flex;gap:8px;justify-content:center;margin-top:10px}
+#zhbPriceBox{
+  position:fixed;top:10px;right:10px;background:#0f0f0f;color:#22e38b;border:1px solid #22e38b;
+  border-radius:10px;padding:6px 10px;font-family:monospace;font-size:14px;z-index:2000
+}
+/* Intro overlay */
+#introOverlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.95);color:#cfffda;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;padding:40px;z-index:3000;transition:opacity 1s ease
+}
+#introOverlay.hidden{opacity:0;pointer-events:none}
+.blur{filter:blur(8px)}
+.fog{position:fixed;top:0;left:0;width:100%;height:100%;background:url('https://i.imgur.com/GQPr5Rf.png');background-size:1000px auto;opacity:0.05;animation:fog 60s linear infinite;z-index:-1}
+@keyframes fog{from{background-position:0 0}to{background-position:1000px 0}}
+.likeRow{display:flex;gap:8px;align-items:center;margin-top:8px}
+.likeRow button{padding:6px 10px;font-size:14px}
+.badge{display:inline-block;background:#0e1d14;border:1px solid #204a32;border-radius:8px;padding:3px 8px;color:#9ef1be;font-size:12px}
+</style>
+</head>
+<body>
+<div class="fog"></div>
+
+<!-- ZHB price badge -->
+<div id="zhbPriceBox">💰 ZHB = <span id="zhbPrice">0.001000</span> SUI</div>
+
+<!-- Intro overlay -->
+<div id="introOverlay">
+  <h2>🧟‍♂️ Welcome to ZombieChain</h2>
+  <p><b>The platform where you raise the dead.</b></p>
+  <p>We’ve all watched our favorite coins crawl into the graveyard of forgotten dreams... but here, the graveyard is just the beginning.</p>
+  <p>At <b>ZombieChain</b>, we resurrect the fallen — not just coins, but hope, regret, and maybe your ex’s crypto project too.</p>
+  <p>Create the dead. Praise it. Trade it. Because every corpse deserves a second pump.</p>
+  <button onclick="enterOtherside()">Enter the Otherside 🧟‍♂️</button>
+</div>
+
+<!-- Main app -->
+<div id="appWrap" class="blur">
+<header>
+  <h1>ZombieChain — Public Demo</h1>
+  <div class="muted">Instant create • Leaderboard • Lore • Comments • Likes • Charts • Optimized economy</div>
+</header>
+
+<!-- Leaderboard -->
+<div class="card">
+  <h3>🏆 Top 10 Trading Coins</h3>
+  <div class="scrollX">
+    <table>
+      <thead><tr><th>Rank</th><th>Coin</th><th>Volume (SUI)</th><th>Trades</th><th>Price</th></tr></thead>
+      <tbody id="lbBody"><tr><td colspan="5" class="muted">No trades yet.</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Global Stats -->
+<div class="card" style="text-align:center">
+  <h3>💀 Global Stats</h3>
+  <div class="row">
+    <div class="col"><b>Users</b><br><span id="s_users">0</span></div>
+    <div class="col"><b>Coins</b><br><span id="s_coins">0</span></div>
+    <div class="col"><b>Trades</b><br><span id="s_trades">0</span></div>
+    <div class="col"><b>Volume</b><br><span id="s_volume">0</span> SUI</div>
+    <div class="col"><b>ZHB Burned</b><br><span id="s_burned">0</span></div>
+  </div>
+</div>
+
+<!-- Wallet -->
+<div class="card">
+  <b>Wallet</b><br>
+  <div id="walletLine" class="muted">Not connected</div>
+  <div class="row" style="margin-top:8px;">
+    <div class="col">
+      <button onclick="useDemoWallet()">Connect (Demo)</button>
+      <button onclick="resetDemo()" class="ghost">Reset</button>
+      <div class="muted" style="margin-top:6px;">SUI: <span id="simSui">—</span> | ZHB: <span id="simZhb">—</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- Faucet + Swap -->
+<div class="card">
+  <b>ZHB Faucet & Swap</b>
+  <div class="row" style="margin-top:10px;">
+    <div class="col">
+      <button onclick="claimZhb()">💧 Claim 100 ZHB</button>
+      <div class="muted">Start testing quickly.</div>
+    </div>
+    <div class="col">
+      <button onclick="swapSuiToZhb()">🔄 Swap 1 SUI → 100 ZHB</button>
+      <div class="muted">Fixed demo rate; SUI goes to platform.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Create coin -->
+<div class="card">
+  <b>Create Coin</b>
+  <div class="row" style="margin-top:10px;">
+    <div class="col">
+      <input id="c_name" placeholder="Zombie Coin"><br><br>
+      <input id="c_symbol" placeholder="ZMB"><br><br>
+      <input id="c_supply" type="number" placeholder="1000000"><br><br>
+      <textarea id="c_lore" placeholder="Write your coin's dark lore..." maxlength="300"></textarea><br><br>
+      <input id="c_logo" type="file" accept="image/*"><br>
+      <div class="muted">Costs 50 ZHB + 0.10 SUI • Platform keeps 5% of supply • Symbol auto-adds “Z”</div>
+    </div>
+    <div class="col">
+      <button onclick="createCoin()">Create Coin</button>
+      <div id="createMsg" class="muted" style="margin-top:6px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Coins -->
+<div class="card">
+  <b>All Coins</b>
+  <div id="coins"></div>
+  <div class="pager">
+    <button class="ghost" onclick="prevPage()">« Prev</button>
+    <span class="muted">Page <b id="pageNow">1</b>/<b id="pageTotal">1</b></span>
+    <button class="ghost" onclick="nextPage()">Next »</button>
+  </div>
+</div>
+</div> <!-- /appWrap -->
+
+<script>
+/* ===== Intro overlay ===== */
+function enterOtherside(){
+  const overlay=document.getElementById("introOverlay");
+  overlay.classList.add("hidden");
+  document.getElementById("appWrap").classList.remove("blur");
+}
+
+/* ===== Config / State ===== */
+const STORAGE_KEY="zombie_public_demo_complete_v1";
+const PLATFORM="0x7b34bfae2f64e707"; // short label for demo
+const PER_PAGE=10;
+
+/* Economy (optimized) */
+const BASE_PRICE=0.0000001, GROWTH_RATE=1.0003;     // faster growth
+const PLATFORM_SHARE=0.05, MINT_FEE_SUI=0.10;        // creation costs
+const ZHB_COST=50, ZHB_BURN_RATE=0.5;                // burn 50% of ZHB fee
+const PLATFORM_TAX=0.05, BURN_ON_TRADE=0.01;         // 5% SUI tax + 1% token burn
+
+/* Runtime */
+let current=null, currentPage=1, newCoinId=null;
+const chartRefs={};
+
+/* ===== Storage helpers ===== */
+function read(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY))||{}; }catch{ return {}; } }
+function write(d){ localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); }
+
+/* ===== Init ===== */
+function init(){
+  let d=read();
+  if(!d.coins){
+    d={
+      sui:{}, zhb:{},
+      coins:[],            // [{id,name,symbol,logo,lore,creator,totalSupply,createdAt}]
+      balances:{},         // addr -> { [coinId]: amount }
+      pools:{},            // coinId -> { poolTokens, poolSui, tokensSold }
+      metrics:{},          // coinId -> { volumeSui, trades }
+      history:{},          // coinId -> [prices...]
+      comments:{},         // coinId -> [ {user,text,time} ]
+      likes:{},            // coinId -> { up,down,votes{addr:1|-1} }
+      users:[],
+      stats:{coins:0,trades:0,vol:0,burnedZhb:0}
+    };
+  }
+  d.sui[PLATFORM]=d.sui[PLATFORM]||10;
+  d.zhb[PLATFORM]=d.zhb[PLATFORM]||500_000_000_000;
+  write(d);
+
+  renderAll();
+  setInterval(updateZhbPriceBox, 3000);
+}
+
+/* ===== Wallet ===== */
+function ensure(addr){
+  const d=read();
+  if(d.sui[addr]==null) d.sui[addr]=100;
+  if(d.zhb[addr]==null) d.zhb[addr]=500;
+  if(!d.balances[addr]) d.balances[addr]={};
+  if(!d.users.includes(addr)) d.users.push(addr);
+  write(d);
+}
+function useDemoWallet(){
+  current="0x"+Math.random().toString(16).slice(2).padEnd(40,"0");
+  ensure(current);
+  renderAll();
+}
+function resetDemo(){
+  localStorage.removeItem(STORAGE_KEY);
+  current=null; currentPage=1; newCoinId=null;
+  init();
+}
+function updateWalletUI(){
+  const d=read();
+  walletLine.innerText=current?("Connected: "+current):"Not connected";
+  simSui.innerText=current? (d.sui[current]||0).toFixed(6) : "—";
+  simZhb.innerText=current? (d.zhb[current]||0) : "—";
+}
+function claimZhb(){ if(!current) return alert("Connect first."); const d=read(); d.zhb[current]+=100; write(d); renderAll(); }
+function swapSuiToZhb(){
+  if(!current) return alert("Connect first.");
+  const d=read(); if((d.sui[current]||0)<1) return alert("Need 1 SUI.");
+  d.sui[current]-=1; d.zhb[current]=(d.zhb[current]||0)+100; d.sui[PLATFORM]+=1; write(d); renderAll();
+}
+
+/* ===== Image (simple dataURL) ===== */
+async function fileToDataURL(file){
+  return new Promise((resolve)=>{ if(!file) return resolve(""); const r=new FileReader(); r.onload=e=>resolve(e.target.result); r.readAsDataURL(file); });
+}
+
+/* ===== Curve math ===== */
+function priceAt(n){ return BASE_PRICE*Math.pow(GROWTH_RATE,n); }
+function buyCost(n,k){ return BASE_PRICE*(Math.pow(GROWTH_RATE,n+k)-Math.pow(GROWTH_RATE,n))/Math.log(GROWTH_RATE); }
+function sellRevenue(n,k){ return BASE_PRICE*(Math.pow(GROWTH_RATE,n)-Math.pow(GROWTH_RATE,n-k))/Math.log(GROWTH_RATE); }
+
+/* ===== Create coin (instant render) ===== */
+async function createCoin(){
+  if(!current) return alert("Connect first.");
+  const name=(c_name.value||"").trim();
+  let symbol=(c_symbol.value||"").trim().toUpperCase();
+  const supply=parseInt(c_supply.value||"0");
+  const lore=(c_lore.value||"").trim();
+  if(!name||!symbol||!supply||supply<=0) return alert("Fill all fields.");
+  if(!symbol.startsWith("Z")){ symbol="Z"+symbol; alert("Symbol changed to: "+symbol); }
+
+  let d=read();
+  if((d.zhb[current]||0)<ZHB_COST) return alert("Need "+ZHB_COST+" ZHB.");
+  if((d.sui[current]||0)<MINT_FEE_SUI) return alert("Need "+MINT_FEE_SUI+" SUI.");
+
+  const logo = await fileToDataURL(c_logo.files[0]);
+
+  const id="coin_"+Math.random().toString(36).slice(2,10);
+  const platformAmt=Math.floor(supply*PLATFORM_SHARE);
+  const poolAmt=supply-platformAmt;
+
+  d.coins.push({id,name,symbol,logo,lore,creator:current,totalSupply:supply,createdAt:Date.now()});
+  if(!d.balances[PLATFORM]) d.balances[PLATFORM]={};
+  d.balances[PLATFORM][id]=(d.balances[PLATFORM][id]||0)+platformAmt;
+  d.pools[id]={poolTokens:poolAmt,poolSui:0,tokensSold:0};
+  d.metrics[id]={volumeSui:0,trades:0};
+  d.history[id]=[priceAt(0)];
+  d.comments[id]=[];
+  d.likes[id]={up:0,down:0,votes:{}};
+  d.stats.coins++;
+  // fees
+  d.zhb[current]-=ZHB_COST;
+  const burned=Math.floor(ZHB_COST*ZHB_BURN_RATE);
+  d.stats.burnedZhb+=burned;
+  d.zhb[PLATFORM]+=ZHB_COST-burned;
+  d.sui[current]-=MINT_FEE_SUI;
+  d.sui[PLATFORM]+=MINT_FEE_SUI;
+
+  write(d);
+  createMsg.innerHTML=`✅ Created <b>${escapeHtml(name)}</b> (${escapeHtml(symbol)}) • Burned ${burned} ZHB.`;
+
+  newCoinId=id;
+  renderAll(true);
+}
+
+/* ===== Trading (platform tax + burn) ===== */
+function applyPlatformTax(amount,d){ const tax=amount*PLATFORM_TAX; d.sui[PLATFORM]+=tax; return amount-tax; }
+function burnOnTrade(qty,p,d){ const burn=Math.floor(qty*BURN_ON_TRADE); if(burn>0){ p.poolTokens = Math.max(0, p.poolTokens - burn); d.stats.burnedZhb+=burn; } }
+
+function buyTokens(id){
+  if(!current) return alert("Connect first.");
+  const d=read(), p=d.pools[id]; if(!p) return;
+  const qty=parseInt(prompt("Qty to buy","100"))||0; if(qty<=0) return;
+  if(qty>p.poolTokens) return alert("Not enough tokens in pool.");
+  const gross=buyCost(p.tokensSold, qty);
+  if((d.sui[current]||0)<gross) return alert("Need "+gross.toFixed(6)+" SUI.");
+
+  const net=applyPlatformTax(gross,d);
+  p.poolTokens-=qty; p.tokensSold+=qty; p.poolSui+=net;
+  d.sui[current]-=gross;
+  if(!d.balances[current]) d.balances[current]={};
+  d.balances[current][id]=(d.balances[current][id]||0)+qty;
+
+  burnOnTrade(qty,p,d);
+  d.metrics[id].trades++; d.metrics[id].volumeSui+=gross; d.stats.trades++; d.stats.vol+=gross;
+
+  write(d);
+  updateChart(id, priceAt(p.tokensSold));
+  renderAll();
+}
+
+function sellTokens(id){
+  if(!current) return alert("Connect first.");
+  const d=read(), p=d.pools[id]; if(!p) return;
+  const have=(d.balances[current]&&d.balances[current][id])?d.balances[current][id]:0;
+  if(have<=0) return alert("You have no tokens.");
+  const qty=parseInt(prompt("Sell qty (max "+have+")", have))||0; if(qty<=0||qty>have) return;
+
+  const gross=sellRevenue(p.tokensSold, qty);
+  const net=applyPlatformTax(gross,d);
+  if(net>p.poolSui) return alert("Pool lacks SUI.");
+
+  d.balances[current][id]-=qty; p.poolTokens+=qty; p.tokensSold-=qty; p.poolSui-=net; d.sui[current]+=net;
+  burnOnTrade(qty,p,d);
+  d.metrics[id].trades++; d.metrics[id].volumeSui+=gross; d.stats.trades++; d.stats.vol+=gross;
+
+  write(d);
+  updateChart(id, priceAt(p.tokensSold));
+  renderAll();
+}
+
+/* ===== Comments + Likes ===== */
+function addComment(id){
+  if(!current) return alert("Connect wallet first.");
+  const box=document.getElementById("commentInput_"+id); if(!box) return;
+  const text=(box.value||"").trim(); if(!text) return;
+  if(text.length>150) return alert("Max 150 chars.");
+  const d=read(); d.comments[id].unshift({user:current,text,time:new Date().toLocaleString()}); write(d);
+  box.value=""; renderCoinsPaginated();
+}
+function voteCoin(id,val){
+  if(!current) return alert("Connect wallet first.");
+  const d=read();
+  if(!d.likes[id]) d.likes[id]={up:0,down:0,votes:{}};
+  const rec=d.likes[id]; const prev=rec.votes[current]||0;
+  if(prev===val){
+    if(val===1) rec.up=Math.max(0,rec.up-1); else rec.down=Math.max(0,rec.down-1);
+    delete rec.votes[current];
+  }else{
+    if(prev===1) rec.up=Math.max(0,rec.up-1);
+    if(prev===-1) rec.down=Math.max(0,rec.down-1);
+    if(val===1) rec.up++; else rec.down++;
+    rec.votes[current]=val;
+  }
+  write(d); renderCoinsPaginated();
+}
+
+/* ===== Charts ===== */
+function updateChart(coinId, price){
+  const d=read(); if(!d.history[coinId]) d.history[coinId]=[];
+  d.history[coinId].push(price); if(d.history[coinId].length>240) d.history[coinId].shift();
+  write(d); drawChart(coinId, d.history[coinId]);
+}
+function drawChart(id, prices){
+  const el=document.getElementById("chart_"+id); if(!el) return;
+  const labels=prices.map((_,i)=>i);
+  if(chartRefs[id]) chartRefs[id].destroy();
+  chartRefs[id]=new Chart(el,{
+    type:"line",
+    data:{labels,datasets:[{label:"Price",data:prices,borderColor:"#22e38b",borderWidth:2,tension:0.3,fill:false}]},
+    options:{animation:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:"#222"}}}}
+  });
+}
+
+/* ===== Renders ===== */
+function renderAll(keepNew=false){
+  updateWalletUI(); renderStats(); renderLeaderboard(); renderCoinsPaginated(keepNew); updateZhbPriceBox();
+}
+function renderStats(){
+  const d=read();
+  s_users.innerText=d.users.length||0;
+  s_coins.innerText=d.stats.coins||0;
+  s_trades.innerText=d.stats.trades||0;
+  s_volume.innerText=(d.stats.vol||0).toFixed(6);
+  s_burned.innerText=d.stats.burnedZhb||0;
+}
+function renderLeaderboard(){
+  const d=read(), body=document.getElementById("lbBody");
+  const arr = (d.coins||[]).map(c=>{
+    const m=d.metrics[c.id]||{volumeSui:0,trades:0};
+    const p=d.pools[c.id]; const price = p ? priceAt(p.tokensSold) : 0;
+    return { id:c.id, name:c.name, symbol:c.symbol, vol:m.volumeSui||0, trades:m.trades||0, price };
+  }).sort((a,b)=> b.vol - a.vol).slice(0,10);
+
+  if(arr.length===0){ body.innerHTML=`<tr><td colspan="5" class="muted">No trades yet.</td></tr>`; return; }
+  body.innerHTML = arr.map((x,i)=>`
+    <tr>
+      <td>#${i+1}</td>
+      <td><b>${escapeHtml(x.name)}</b> <span class="muted">(${escapeHtml(x.symbol)})</span></td>
+      <td>${x.vol.toFixed(6)}</td>
+      <td>${x.trades}</td>
+      <td>${x.price.toFixed(10)} SUI</td>
+    </tr>`).join("");
+}
+
+function renderCoinsPaginated(keepNew=false){
+  const d=read();
+  const wrap=document.getElementById("coins");
+  const list=(d.coins||[]).slice().reverse();
+  const total=list.length;
+  const totalPages=Math.max(1, Math.ceil(total/PER_PAGE));
+  if(currentPage>totalPages) currentPage=totalPages;
+
+  const start=(currentPage-1)*PER_PAGE, end=Math.min(start+PER_PAGE,total);
+  const items=list.slice(start,end);
+
+  pageNow.innerText=currentPage; pageTotal.innerText=totalPages;
+
+  if(total===0){ wrap.innerHTML=`<div class="muted">No coins yet.</div>`; return; }
+
+  let html="";
+  for(const c of items){
+    const p=d.pools[c.id]; const price=priceAt(p.tokensSold);
+    const myBal=current&&d.balances[current]? (d.balances[current][c.id]||0):0;
+    const likeRec=d.likes[c.id]||{up:0,down:0,votes:{}};
+    const myVote=(likeRec.votes||{})[current]||0;
+    const isNew = keepNew && (c.id===newCoinId);
+
+    html+=`
+      <div class="card ${isNew?'newCoin':''}">
+        <div class="row">
+          <div class="col">
+            <b>${escapeHtml(c.name)} (${escapeHtml(c.symbol)})</b>
+            <div class="muted" style="margin-top:6px">${c.lore?escapeHtml(c.lore):"<i>No lore...</i>"}</div>
+            ${c.logo?`<img src="${c.logo}" class="logo" alt="${escapeHtml(c.symbol)} logo">`:""}
+          </div>
+          <div class="col">
+            <div class="muted">Creator: <code>${c.creator}</code></div>
+            <div class="muted">Supply: ${c.totalSupply.toLocaleString()}</div>
+            <div class="muted">Pool tokens: <b>${p.poolTokens}</b> • Pool SUI: <b>${p.poolSui.toFixed(6)}</b></div>
+            <div class="muted">Sold: <b>${p.tokensSold}</b> • Price: <b>${price.toFixed(10)} SUI</b></div>
+            <div class="muted">Your balance: <b>${myBal}</b></div>
+
+            <div class="likeRow">
+              <button onclick="voteCoin('${c.id}',1)" ${myVote===1?'style="outline:2px solid #39ff9b"':''}>👍 <span>${likeRec.up}</span></button>
+              <button onclick="voteCoin('${c.id}',-1)" ${myVote===-1?'style="outline:2px solid #e84e4e"':''}>👎 <span>${likeRec.down}</span></button>
+              <button onclick="buyTokens('${c.id}')">Buy</button>
+              <button class="ghost" onclick="sellTokens('${c.id}')">Sell</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chartBox"><canvas id="chart_${c.id}"></canvas></div>
+
+        <div class="commentBox">
+          <input id="commentInput_${c.id}" maxlength="150" placeholder="Say something about this coin..." style="width:75%">
+          <button onclick="addComment('${c.id}')">💬</button>
+          ${renderComments(d.comments[c.id]||[])}
+        </div>
+      </div>`;
+  }
+  wrap.innerHTML=html;
+
+  for(const c of items){
+    const hist=(d.history && d.history[c.id]) ? d.history[c.id] : [priceAt(0)];
+    drawChart(c.id, hist);
+  }
+  newCoinId=null;
+}
+
+function renderComments(list){
+  if(!list.length) return "<div class='muted'>No comments yet</div>";
+  return list.slice(0,3).map(c=>`
+    <div class="comment">
+      <span class="user">${(c.user||"").slice(0,6)}...</span>:
+      ${escapeHtml(c.text)}
+      <div class="time">${c.time}</div>
+    </div>`).join("");
+}
+
+/* ===== Pagination ===== */
+function nextPage(){ const d=read(); const totalPages=Math.max(1, Math.ceil((d.coins||[]).length/PER_PAGE)); if(currentPage<totalPages){ currentPage++; renderCoinsPaginated(); } }
+function prevPage(){ if(currentPage>1){ currentPage--; renderCoinsPaginated(); } }
+
+/* ===== ZHB price badge (demo) ===== */
+function updateZhbPriceBox(){ const d=read(); const base=0.001 + (d.stats.burnedZhb||0)/1_000_000_000; zhbPrice.textContent=base.toFixed(6); }
+
+/* ===== Utils ===== */
+function escapeHtml(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;"); }
+
+/* ===== Boot ===== */
+init();
+</script>
+</body>
+</html>
